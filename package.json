@@ -1,0 +1,20 @@
+{
+  "name": "tax-calculator",
+  "version": "1.0.0",
+  "description": "A simple containerized Tax Calculator web application built for the Cloud Native, DevOps, Agile, and NoSQL final project.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jasmine"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "jasmine": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

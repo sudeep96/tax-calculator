@@ -1,0 +1,70 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: tax-calculator-pipeline
+spec:
+  workspaces:
+    - name: shared-workspace
+      description: Workspace containing the application source code
+
+  params:
+    - name: IMAGE
+      type: string
+      description: Full image reference to build and push, e.g. <region>.icr.io/<namespace>/tax-calculator:latest
+    - name: CE_APP_NAME
+      type: string
+      default: tax-calculator
+      description: Name of the Code Engine application to deploy
+    - name: CE_PROJECT
+      type: string
+      description: IBM Cloud Code Engine project name
+
+  tasks:
+    - name: install
+      taskRef:
+        name: install-dependencies
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: test
+      taskRef:
+        name: run-tests
+      runAfter:
+        - install
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: build
+      taskRef:
+        name: build-image
+      # runAfter ensures this task only starts once "test" has completed.
+      # Because Tekton only runs a task after ALL of its runAfter
+      # dependencies finish SUCCESSFULLY, a failing "test" task means
+      # "build" (and therefore "deploy") never executes.
+      runAfter:
+        - test
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: deploy
+      taskRef:
+        name: deploy-image
+      # Same guarantee applies here: deploy only runs after build
+      # succeeds, which itself only runs after test succeeds. If the
+      # Jasmine tests fail, this task is skipped entirely and the
+      # PipelineRun is marked failed.
+      runAfter:
+        - build
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE)
+        - name: CE_APP_NAME
+          value: $(params.CE_APP_NAME)
+        - name: CE_PROJECT
+          value: $(params.CE_PROJECT)

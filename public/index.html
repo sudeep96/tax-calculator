@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tax Calculator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>Tax Calculator</h1>
+    <p class="subtitle">A demonstration progressive tax calculator (not real tax advice).</p>
+
+    <form id="tax-form">
+      <label for="income">Annual Income ($)</label>
+      <input type="number" id="income" name="income" min="0" step="0.01" placeholder="e.g. 55000" required />
+      <button type="submit">Calculate Tax</button>
+    </form>
+
+    <section id="result" class="result hidden">
+      <h2>Result</h2>
+      <p><strong>Income:</strong> $<span id="result-income"></span></p>
+      <p><strong>Tax Owed:</strong> $<span id="result-tax"></span></p>
+      <p><strong>Effective Rate:</strong> <span id="result-rate"></span>%</p>
+      <p><strong>Net Income:</strong> $<span id="result-net"></span></p>
+    </section>
+
+    <section id="error" class="error hidden"></section>
+
+    <footer>
+      <small>GET /health for service status &middot; Brackets are illustrative only.</small>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

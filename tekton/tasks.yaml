@@ -1,0 +1,98 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: install-dependencies
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: npm-install
+      image: node:18-alpine
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        set -e
+        echo "Installing dependencies..."
+        npm install
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: run-tests
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: jasmine-tests
+      image: node:18-alpine
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        set -e
+        echo "Running Jasmine unit tests..."
+        npx jasmine
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-image
+spec:
+  workspaces:
+    - name: source
+  params:
+    - name: IMAGE
+      type: string
+      description: Full image reference to build and push, e.g. <region>.icr.io/<namespace>/tax-calculator:latest
+  steps:
+    - name: build-and-push
+      image: gcr.io/kaniko-project/executor:latest
+      workingDir: $(workspaces.source.path)
+      args:
+        - --dockerfile=Dockerfile
+        - --context=$(workspaces.source.path)
+        - --destination=$(params.IMAGE)
+        # For local/lab clusters without a trusted registry cert chain,
+        # remove --insecure / --skip-tls-verify once real TLS is configured.
+      env:
+        - name: DOCKER_CONFIG
+          value: /tekton/home/.docker
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-image
+spec:
+  params:
+    - name: IMAGE
+      type: string
+      description: Full image reference to deploy, e.g. <region>.icr.io/<namespace>/tax-calculator:latest
+    - name: CE_APP_NAME
+      type: string
+      default: tax-calculator
+      description: Name of the Code Engine application
+    - name: CE_PROJECT
+      type: string
+      description: IBM Cloud Code Engine project name
+  steps:
+    - name: ibmcloud-ce-deploy
+      image: icr.io/codeengine/ibmcloud:latest
+      script: |
+        #!/bin/sh
+        set -e
+        echo "Selecting Code Engine project $(params.CE_PROJECT)..."
+        ibmcloud ce project select --name "$(params.CE_PROJECT)"
+
+        echo "Deploying/updating application $(params.CE_APP_NAME)..."
+        if ibmcloud ce application get --name "$(params.CE_APP_NAME)" >/dev/null 2>&1; then
+          ibmcloud ce application update \
+            --name "$(params.CE_APP_NAME)" \
+            --image "$(params.IMAGE)"
+        else
+          ibmcloud ce application create \
+            --name "$(params.CE_APP_NAME)" \
+            --image "$(params.IMAGE)" \
+            --port 8080
+        fi
+
+        echo "Deployment complete. Application URL:"
+        ibmcloud ce application get --name "$(params.CE_APP_NAME)" -o url
